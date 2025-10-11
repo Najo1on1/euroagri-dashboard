@@ -1,0 +1,8 @@
+streamlit>=1.40
+pandas
+numpy
+pyarrow
+plotly
+matplotlib
+# optional niceties
+seaborn

@@ -1,0 +1,18 @@
+/* Subtle tighten */
+.block-container { padding-top: 1.2rem; padding-bottom: 4rem; }
+
+/* Footer always at bottom */
+footer { visibility: hidden; }
+#custom-footer {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 8px 16px; font-size: 0.9rem;
+  background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(4px);
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+#custom-footer a { color: #22c55e; text-decoration: none; }
+#custom-footer a:hover { text-decoration: underline; }
+
+/* Mobile: sidebar collapses automatically when width is tight; reduce top padding */
+@media (max-width: 680px) {
+  .block-container { padding-top: 0.6rem; }
+}

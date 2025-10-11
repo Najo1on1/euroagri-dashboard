@@ -1,0 +1,9 @@
+[theme]
+base = "dark"
+primaryColor = "#22c55e"          # green accent you chose
+backgroundColor = "#0b0f14"       # optional: deep dark bg
+secondaryBackgroundColor = "#111827"
+textColor = "#e5e7eb"
+
+[browser]
+gatherUsageStats = false

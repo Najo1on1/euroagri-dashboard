@@ -1,0 +1,18 @@
+# env & cache
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+
+# OS/editor
+.DS_Store
+.vscode/
+
+# large data outside samples
+data/interim/
+data/processed/
+data/external/
+data/raw/
+
+# keep the sample dir
+!data/sample/
