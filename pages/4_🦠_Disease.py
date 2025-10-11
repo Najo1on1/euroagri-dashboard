@@ -1,5 +1,5 @@
+# pages/4_🦠_Disease.py
 import io
-import os
 import logging
 import warnings
 from pathlib import Path
@@ -8,18 +8,13 @@ import pandas as pd
 import streamlit as st
 
 # -------------------------------
-# Silence deprecation chatter in-app
+# Quiet common deprecation chatter in-app (best effort)
 # -------------------------------
-# (Best effort: hide FutureWarnings/UserWarnings that mention plotly/config/use_container_width)
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", message=r".*deprecated.*Plotly.*", category=UserWarning)
 warnings.filterwarnings("ignore", message=r".*use_container_width.*", category=UserWarning)
-
-# Turn down Streamlit loggers to suppress deprecation notices in the UI log pane
 for name in ("streamlit", "streamlit.runtime", "streamlit.web", "streamlit.logger"):
     logging.getLogger(name).setLevel(logging.ERROR)
-
-# Optional: also reduce Plotly logger noise
 logging.getLogger("plotly").setLevel(logging.ERROR)
 
 # Plotly first (with fallback to Matplotlib)
@@ -31,33 +26,42 @@ except Exception:
 import matplotlib.pyplot as plt
 
 # -------------------------------
-# Paths (D: preferred, HOME fallback)
+# Repo-local paths ONLY (no D:/HOME fallbacks)
 # -------------------------------
-WSL_D = Path("/mnt/d/Colab/Ecosystem/Deep RL and LLM/Agri")
-HOME  = Path("/home/najo1o11/euroagri-advisor")
-
-INTERIM_D = WSL_D / "data" / "interim"
-INTERIM_H = HOME  / "data" / "interim"
-
-DISEASE_D = INTERIM_D / "disease_risk.parquet"
-DISEASE_H = INTERIM_H / "disease_risk.parquet"
+# This file lives in repo_root/pages/, so repo root is one parent up.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DATA_SAMPLE = REPO_ROOT / "data" / "sample"
+DISEASE_SAMPLE = DATA_SAMPLE / "disease_risk.parquet"
 
 # -------------------------------
 # Small utils
 # -------------------------------
-def existing_path(primary: Path, fallback: Path) -> Path | None:
-    if primary.exists():
-        return primary
-    if fallback.exists():
-        return fallback
-    return None
+def load_parquet_or_uploaded(default_path: Path, label: str) -> tuple[pd.DataFrame, str]:
+    """
+    1) If a user uploads a parquet, use it for this session.
+    2) Else read the repo sample from data/sample/.
+    3) Else stop with a friendly error.
+    Returns (df, source_str).
+    """
+    uploaded = st.file_uploader(f"Upload {label} (.parquet)", type=["parquet"], key=f"uploader_{label}")
+    if uploaded is not None:
+        try:
+            df = pd.read_parquet(uploaded)
+            return df, "uploaded file"
+        except Exception as e:
+            st.error(f"Could not read uploaded {label}: {e}")
+            st.stop()
 
-@st.cache_data(show_spinner=False)
-def load_parquet(path: Path) -> pd.DataFrame:
-    try:
-        return pd.read_parquet(path)
-    except Exception:
-        return pd.DataFrame()
+    if default_path.exists():
+        try:
+            df = pd.read_parquet(default_path)
+            return df, str(default_path.relative_to(REPO_ROOT))
+        except Exception as e:
+            st.error(f"Failed to read sample {label} at {default_path}: {e}")
+            st.stop()
+
+    st.error(f"Missing sample {label}: {default_path}. Please upload a Parquet.")
+    st.stop()
 
 def canon(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
@@ -101,18 +105,13 @@ COLOR_CYCLE = [
 st.set_page_config(page_title="Disease Risk", page_icon="🦠", layout="wide")
 st.title("🦠 Disease Risk")
 
-# Data source check
-src = existing_path(DISEASE_D, DISEASE_H)
+# Load & canonicalize via uploader → sample
 with st.sidebar:
     st.subheader("Data source")
-    if src:
-        st.success(f"Loaded: {src}")
-    else:
-        st.error("Could not find disease_risk.parquet on D: or HOME.")
-        st.stop()
-
-# Load & canonicalize
-risk = canon(load_parquet(src))
+risk_raw, src_str = load_parquet_or_uploaded(DISEASE_SAMPLE, "disease risk")
+risk = canon(risk_raw)
+with st.sidebar:
+    st.code(f"source: {src_str}")
 
 # Verify required columns
 needed = {"region_iso", "year", "month", "crop", "disease", "risk_0_1"}
@@ -132,7 +131,7 @@ with st.sidebar:
     years   = sorted([int(y) for y in risk["year"].dropna().unique().tolist()])
 
     sel_regions = st.multiselect("Regions", options=regions, default=regions[:3])
-    sel_crops   = st.multiselect("Crops",   options=crops,   default=["wheat"] if "wheat" in crops else crops[:1])
+    sel_crops   = st.multiselect("Crops",   options=crops,   default=["wheat"] if "wheat" in crops else (crops[:1] if crops else []))
 
     # Year selection + average toggle
     sel_years   = st.multiselect("Years (each will be a separate line)", options=years, default=[])
